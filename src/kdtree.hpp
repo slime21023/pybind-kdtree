@@ -20,13 +20,14 @@ private:
 
     // for nearest neighbor search and used by leaf node.
     Point centroid;
-    vector<Point> points;
     KDTree *left;
     KDTree *right;
     void split();
     vector<pair<double, KDTree*>> get_search_leaves(const Point &q, const int k);
 
 public:
+    vector<Point> points;
+
     // The constructor for root node
     KDTree(int n_dim, int n_leaf, vector<Point> ps);
     KDTree(int n_dim, int c_dim, int n_leaf, vector<Point> ps);
@@ -162,16 +163,45 @@ vector<pair<double, KDTree*>> KDTree::get_search_leaves(const Point &q, const in
 void query_list_insert(list<pair<double, Point>> &ql, const Point &q, Point p, int dim)
 {
     double d = distance(q, p, dim);
-    // TODO
-    // for ()
+    if (ql.size() == 0) 
+    {
+        ql.push_back(pair<double, Point>(d, p));
+        return;
+    }
+
+    for (auto it = ql.begin(); it != ql.end(); it++)
+    {
+        double compare = it->first;
+        if (d < compare)
+        {
+            ql.insert(it, pair<double, Point>(d, p));
+            break;
+        }
+    }
 }
 
 vector<Point> KDTree::kneighbors(const Point &q, const int k)
 {
-    // TODO
     list<pair<double, Point>> finding;
+    vector<pair<double, KDTree*>> leaves = get_search_leaves(q, k);
 
+    for(auto leaf: leaves) 
+    {
+        KDTree *tree = leaf.second;
+        for (auto point: tree->points) 
+        {
+            query_list_insert(finding, q, point, dim);
+        }
+    }
 
+    vector<Point> result;
+    auto it = finding.begin();
+    for(int i = 0; i < k; i++)
+    {
+        result.push_back(it->second);
+        it++;
+    }
+    return result;
 }
 
 #endif

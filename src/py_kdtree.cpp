@@ -18,17 +18,18 @@ struct Tree
         for (int idx = 0; idx < rows; idx++)
         {
             double *row = static_cast<double *>(buf.ptr) + idx * cols;
-            Point p(cols, 0);
-            for (int j = 0; j < cols; j++)
-            {
-                p[j] = row[j];
-            }
+            Point p(row, row + cols);
+            // for (int j = 0; j < cols; j++)
+            // {
+            //     p[j] = row[j];
+            // }
 
             ps.push_back(p);
         }
 
         t = new KDTree(cols, leaf_num, ps);
     };
+
     vector<Point> kneighbors(const Point &q, const int k)
     {
         return t->kneighbors(q, k);

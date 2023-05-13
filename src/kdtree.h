@@ -11,6 +11,13 @@
 using namespace std;
 typedef vector<double> Point;
 
+void print_point(Point &p) {
+  for (int i = 0; i < p.size(); i++) {
+    cout << p[i] << " ";
+  }
+  cout << endl;
+}
+
 class KDTree {
 private:
   int dim;
@@ -23,8 +30,8 @@ private:
   KDTree *left;
   KDTree *right;
   void split();
-  vector<pair<double, KDTree &>> get_search_leaves(const Point &q, const int k);
-  void get_search_leaves(vector<pair<double, KDTree &>> &inserts,
+  vector<pair<double, KDTree *>> get_search_leaves(const Point &q, const int k);
+  void get_search_leaves(vector<pair<double, KDTree *>> &inserts,
                          const Point &q);
 
 public:
@@ -65,6 +72,7 @@ KDTree::KDTree(int n_dim, int n_leaf, vector<Point> ps) {
     split();
   } else {
     centroid = calculate_centroid(points, dim);
+    // print_point(centroid);
   }
 }
 
@@ -80,6 +88,7 @@ KDTree::KDTree(int n_dim, int c_dim, int n_leaf, vector<Point> ps) {
     split();
   } else {
     centroid = calculate_centroid(points, dim);
+    // print_point(centroid);
   }
 }
 
@@ -111,34 +120,34 @@ double distance(const Point &a, const Point &b, int dim) {
   return sqrt(sum);
 }
 
-void KDTree::get_search_leaves(vector<pair<double, KDTree &>> &inserts,
+void KDTree::get_search_leaves(vector<pair<double, KDTree *>> &inserts,
                                const Point &q) {
   bool is_leaf = (left == nullptr) && (right == nullptr);
 
   if (is_leaf) {
     double d = distance(q, centroid, dim);
-    inserts.push_back(pair<double, KDTree &>(d, *this));
+    inserts.push_back(pair<double, KDTree *>(d, this));
   } else {
     right->get_search_leaves(inserts, q);
     left->get_search_leaves(inserts, q);
   }
 }
 
-vector<pair<double, KDTree &>> KDTree::get_search_leaves(const Point &q,
+vector<pair<double, KDTree *>> KDTree::get_search_leaves(const Point &q,
                                                          const int k) {
-  vector<pair<double, KDTree &>> leaves;
+  vector<pair<double, KDTree *>> leaves;
   bool is_leaf = (left == nullptr) && (right == nullptr);
 
   if (is_leaf) {
     double d = distance(q, centroid, dim);
-    leaves.push_back(pair<double, KDTree &>(d, *this));
+    leaves.push_back(pair<double, KDTree *>(d, this));
   } else {
     right->get_search_leaves(leaves, q);
     left->get_search_leaves(leaves, q);
   }
 
   sort(leaves.begin(), leaves.end(),
-       [](pair<double, KDTree &> &a, pair<double, KDTree &> &b) {
+       [](pair<double, KDTree *> &a, pair<double, KDTree *> &b) {
          return a.first < b.first;
        });
 
@@ -153,39 +162,45 @@ void query_list_insert(list<pair<double, Point>> &ql, const Point &q, Point p,
     return;
   }
 
+  bool has_insert = false;
+
   for (auto it = ql.begin(); it != ql.end(); it++) {
     double compare = it->first;
     if (d < compare) {
       ql.insert(it, pair<double, Point>(d, p));
+      has_insert = true;
       break;
     }
   }
-}
 
-// void print_point(Point &p) {
-//   for (int i = 0; i < p.size(); i++) {
-//     cout << p[i] << " ";
-//   }
-//   cout << endl;
-// }
+  if (!has_insert) {
+    ql.insert(ql.end(), pair<double, Point>(d, p));
+  }
+}
 
 vector<Point> KDTree::kneighbors(const Point &q, const int k) {
   list<pair<double, Point>> finding;
-  vector<pair<double, KDTree &>> leaves = get_search_leaves(q, k);
+  vector<pair<double, KDTree *>> leaves = get_search_leaves(q, k);
 
-  for (auto it = leaves.begin(); it != leaves.begin() + k; it++) {
-    KDTree &tree = it->second;
-    for (auto point : tree.points) {
-      // print_point(point);
+  auto end = leaves.end();
+  if (leaves.size() > k) {
+    end = leaves.begin();
+    end += k;
+  }
+
+  for (auto it = leaves.begin(); it != end; it++) {
+    KDTree *tree = it->second;
+    for (auto &point : tree->points) {
       query_list_insert(finding, q, point, dim);
     }
   }
 
   vector<Point> result;
-  auto it = finding.begin();
-  for (int i = 0; i < k; i++) {
+  for (auto it = finding.begin(); it != finding.end(); it++) {
     result.push_back(it->second);
-    it++;
+    if (result.size() == k) {
+      break;
+    }
   }
   return result;
 }
